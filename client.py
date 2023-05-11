@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtWidgets import QMainWindow, QApplication
+from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton
 from PyQt5.QtCore import QTimer
 import pyqtgraph as pg
 import numpy as np
@@ -37,8 +37,33 @@ class MainWindow(QMainWindow):
         self.timer.timeout.connect(self.update_plot)
         self.timer.start(50)
 
+        # ボタンを作成してウィンドウに追加
+        self.pause_button = QPushButton('Pause', self)
+        self.pause_button.clicked.connect(self.pause_plot)
+        self.play_button = QPushButton('Play', self)
+        self.play_button.clicked.connect(self.play_plot)
+        self.toolbar = self.addToolBar('')
+        self.toolbar.addWidget(self.pause_button)
+        self.toolbar.addWidget(self.play_button)
+
+        # プロットの一時停止フラグ
+        self.plot_paused = False
+
+    def pause_plot(self):
+        self.plot_paused = True
+
+    def play_plot(self):
+        self.plot_paused = False
+
+    def closeEvent(self, event):
+        # タイマーを停止する
+        self.timer.stop()
+        event.accept()
+
     def update_plot(self):
         # データを取得してプロット
+        if self.plot_paused:
+            return
         sample, timestamp = self.inlet.pull_sample()
         data = np.array([plot_data_item.getData()[1] for plot_data_item in self.plot_data_items])
         data = np.array(data)

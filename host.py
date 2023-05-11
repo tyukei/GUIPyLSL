@@ -18,9 +18,11 @@ freqs = np.random.choice(range(1, 21), size=8, replace=False)
 # 8つの振幅を指定
 amplitudes = [1, 2, 3, 4, 5, 6, 7, 8]
 
-# サイン波の波形を生成
+# 矩形波の波形を生成
 t = np.arange(n_samples) / fs
-waveform = np.array([amp * np.sin(2 * np.pi * freq * t) for freq, amp in zip(freqs, amplitudes)]).T
+waveform = np.zeros((n_samples, 8))
+for i, (freq, amp) in enumerate(zip(freqs, amplitudes)):
+    waveform[:, i] = np.where(np.sin(2 * np.pi * freq * t) > 0, amp, -amp)
 
 # サンプルをストリームに送信
 for i in range(n_samples):
