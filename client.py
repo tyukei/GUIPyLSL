@@ -11,7 +11,7 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         # ストリームを検索してStreamInletオブジェクトを作成
-        streams = resolve_stream('name', 'MyStream')
+        streams = resolve_stream('name', 'XHRO-81e5-OPT')
         self.inlet = StreamInlet(streams[0])
 
         # グラフを作成
