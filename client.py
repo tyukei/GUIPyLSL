@@ -11,7 +11,7 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         # ストリームを検索してStreamInletオブジェクトを作成
-        streams = resolve_stream('name', 'XHRO-81e5-OPT')
+        streams = resolve_stream('name', 'XHRO-81e5-BIOZ')
         self.inlet = StreamInlet(streams[0])
 
         # グラフを作成
@@ -65,10 +65,14 @@ class MainWindow(QMainWindow):
         if self.plot_paused:
             return
         sample, timestamp = self.inlet.pull_sample()
+
+        # LSLのストリームが提供するチャンネル数に応じてreshapeする
+        if len(sample) != 8:
+            return
+        sample = np.array(sample).reshape(1, 8)  # shapeを(1,8)に変換
+
         data = np.array([plot_data_item.getData()[1] for plot_data_item in self.plot_data_items])
-        data = np.array(data)
-        sample = np.array(sample)
-        data = np.hstack((data[:, 1:], sample.reshape(-1, 1)))
+        data = np.hstack((data[:, 1:], sample))  # 最後の列と新しい行を連結
 
         # dataの長さが1000を超えている場合は、先頭から1000個だけを使用する
         if len(data[0]) > 1000:
