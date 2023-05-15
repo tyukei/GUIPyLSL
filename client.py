@@ -1,59 +1,40 @@
 import sys
-from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton
-from PyQt5.QtCore import QTimer
-import pyqtgraph as pg
 import numpy as np
+from PyQt5.QtWidgets import QMainWindow, QApplication
+import pyqtgraph as pg
 from pylsl import resolve_stream, StreamInlet
+import time
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        # ストリームを検索してStreamInletオブジェクトを作成
-        streams = resolve_stream('name', 'XHRO-81e5-BIOZ')
-        self.inlet = StreamInlet(streams[0])
+        # データストリームを検索して、StreamInletオブジェクトを作成する
+        stream_name = 'XHRO-81e5-EEG'  # Streamの名前
+        stream_channels = 8  # Streamのチャンネル数
+        self.inlet = None
+        while self.inlet is None:
+            print("Looking for stream...")
+            streams = resolve_stream('name', 'XHRO-81e5-EEG')
+            if len(streams) > 0:
+                self.inlet = StreamInlet(streams[0], max_buflen=360)
+        print(f"Connected to stream '{stream_name}' with {stream_channels} channels.")
 
         # グラフを作成
         self.plot_widget = pg.PlotWidget()
         self.setCentralWidget(self.plot_widget)
+        self.plot_data_item = self.plot_widget.plot()
+        self.plot_data_item.setPen(pg.mkPen(color=(255, 0, 0), width=2))
+        self.plot_widget.setYRange(-100, 100)
 
         # ウィンドウサイズを設定
         self.setGeometry(100, 100, 800, 600)
 
-        # グラフの初期値を設定
-        self.plot_data_items = []
-        for i in range(8):
-            pen = pg.mkPen(color=(255 * i / 8, 0, 255 * (8 - i) / 8), width=2)
-            plot_data_item = self.plot_widget.plot(pen=pen)
-            plot_data_item.setData(np.zeros(1000) + i)
-            self.plot_data_items.append(plot_data_item)
-
-        # グラフの横軸範囲を設定
-        self.plot_widget.setXRange(0, 1000)
-
         # タイマーを設定して定期的にデータを受信する
-        self.timer = QTimer(self)
+        self.timer = pg.QtCore.QTimer(self)
         self.timer.timeout.connect(self.update_plot)
         self.timer.start(50)
-
-        # ボタンを作成してウィンドウに追加
-        self.pause_button = QPushButton('Pause', self)
-        self.pause_button.clicked.connect(self.pause_plot)
-        self.play_button = QPushButton('Play', self)
-        self.play_button.clicked.connect(self.play_plot)
-        self.toolbar = self.addToolBar('')
-        self.toolbar.addWidget(self.pause_button)
-        self.toolbar.addWidget(self.play_button)
-
-        # プロットの一時停止フラグ
-        self.plot_paused = False
-
-    def pause_plot(self):
-        self.plot_paused = True
-
-    def play_plot(self):
-        self.plot_paused = False
 
     def closeEvent(self, event):
         # タイマーを停止する
@@ -62,28 +43,10 @@ class MainWindow(QMainWindow):
 
     def update_plot(self):
         # データを取得してプロット
-        if self.plot_paused:
-            return
         sample, timestamp = self.inlet.pull_sample()
+        # データをプロットする
+        self.plot_data_item.setData(sample)
 
-        # LSLのストリームが提供するチャンネル数に応じてreshapeする
-        if len(sample) != 8:
-            return
-        sample = np.array(sample).reshape(1, 8)  # shapeを(1,8)に変換
-
-        data = np.array([plot_data_item.getData()[1] for plot_data_item in self.plot_data_items])
-        data = np.hstack((data[:, 1:], sample))  # 最後の列と新しい行を連結
-
-        # dataの長さが1000を超えている場合は、先頭から1000個だけを使用する
-        if len(data[0]) > 1000:
-            data = data[:, -1000:]
-
-        # プロットアイテムごとに色を設定する
-        colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0),
-                  (0, 255, 255), (255, 0, 255), (128, 0, 128), (255, 128, 0)]
-        for i, plot_data_item in enumerate(self.plot_data_items):
-            plot_data_item.setData(data[i, :])
-            plot_data_item.setPen(pg.mkPen(color=colors[i], width=2))
 
 
 if __name__ == '__main__':
